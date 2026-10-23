@@ -82,11 +82,10 @@ code, pre { font-family: var(--mono); }
 .avatar { width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--gold); color: var(--tile-ink); font-family: var(--display); font-size: 14px; font-style: normal; letter-spacing: .04em; }
 .card .photo.mono { display: grid; place-items: center; background: repeating-linear-gradient(135deg, #2c203d 0 14px, #251a34 14px 28px); }
 .card .pc { font-family: var(--display); font-size: 120px; line-height: 1; color: var(--gold); text-shadow: 0 4px 0 rgba(0,0,0,.4); }
-.react { display: flex; gap: 14px; align-items: center; background: var(--court); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-top: 14px; }
-.react .face { width: 88px; height: 88px; border-radius: 8px; border: 2px solid var(--gold); flex: none; display: grid; place-items: center; font-family: var(--display); font-size: 40px; color: var(--tile-ink); background: var(--gold); }
-.react.sad .face { background: var(--court-2); color: var(--muted); border-color: var(--line); }
-.react p { margin: 0; font-size: 14px; color: var(--muted); }
-.react p b { display: block; color: var(--ink); font-size: 15px; }
+.react { display: flex; gap: 16px; align-items: center; background: var(--court); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+.react .face { width: 64px; height: 64px; border-radius: 8px; flex: none; display: grid; place-items: center; font-family: var(--display); font-size: 30px; color: var(--tile-ink); background: var(--gold); }
+.react p { margin: 0; font-size: 14px; line-height: 1.45; color: var(--muted); min-width: 0; }
+.react p b { display: block; color: var(--ink); font-size: 15px; margin-bottom: 2px; }
 .facts { display: flex; flex-wrap: wrap; gap: 10px 22px; font-size: 14px; color: var(--muted); }
 .facts b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
@@ -172,23 +171,29 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; }
 .reveal .next { align-self: flex-end; }
 
 /* results */
-.final { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.end { display: flex; flex-direction: column; gap: 32px; }
+.final { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.lead { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.lead .head { display: flex; flex-direction: column; gap: 8px; }
 .big { font-family: var(--display); font-size: clamp(72px, 16vw, 132px); line-height: .9; color: var(--gold); font-variant-numeric: tabular-nums; }
-.rank { font-family: var(--display); font-size: clamp(26px, 4vw, 34px); text-transform: uppercase; letter-spacing: .03em; line-height: 1.05; margin: 6px 0 4px; text-wrap: balance; }
-.rank-sub { color: var(--muted); margin: 0; max-width: 44ch; }
-.splits { background: var(--court); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
-.splits h3, .missed h3 { margin: 0 0 4px; font-family: var(--display); font-weight: 400; font-size: 20px; letter-spacing: .05em; text-transform: uppercase; }
-.split { display: grid; grid-template-columns: 9.5em 1fr 3.2em; gap: 10px; align-items: center; font-size: 14px; }
+.rank { font-family: var(--display); font-size: clamp(26px, 4vw, 34px); text-transform: uppercase; letter-spacing: .03em; line-height: 1.05; text-wrap: balance; }
+.rank-sub { color: var(--muted); margin: 0; max-width: 46ch; }
+.splits { background: var(--court); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.splits h3, .missed h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 20px; letter-spacing: .05em; text-transform: uppercase; }
+.missed h3 + p { margin: 0; color: var(--muted); font-size: 14px; }
+.split { display: grid; grid-template-columns: 8.5em minmax(0, 1fr) 2.6em; gap: 12px; align-items: center; font-size: 14px; }
 .split .meter { height: 10px; background: var(--court-2); border-radius: 5px; overflow: hidden; }
 .split .meter i { display: block; height: 100%; background: var(--gold); }
-.split .meter i.lowv { background: var(--bad); }
+.split .meter i.lowv { background: var(--muted); }
 .split .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
 .missed { display: flex; flex-direction: column; gap: 10px; }
-.miss { background: var(--court); border: 1px solid var(--line); border-left: 4px solid var(--bad); border-radius: 6px; padding: 12px 14px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+.missed .list { display: flex; flex-direction: column; gap: 10px; }
+.miss { background: var(--court); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 6px; padding: 12px 14px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
 .miss .mq { font-weight: 700; }
 .miss .ma { color: var(--muted); }
 .miss code { font-family: var(--mono); font-size: 13px; color: #f3e6c8; overflow-wrap: anywhere; }
-.best { font-size: 14px; color: var(--muted); }
+.best { margin: 0; font-size: 14px; color: var(--muted); }
+.end .controls, .end footer { margin: 0; }
 .best b { color: var(--ink); font-variant-numeric: tabular-nums; }
 footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
 
@@ -199,8 +204,8 @@ footer { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line)
   .tile { min-height: 64px; }
   .board { grid-template-columns: auto 1fr auto; }
   .board .stat.streak { display: none; }
-  .final { grid-template-columns: 1fr; }
-  .split { grid-template-columns: 7.5em 1fr 3em; }
+  .end { gap: 28px; }
+  .final { grid-template-columns: minmax(0, 1fr); gap: 24px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ticker .track { animation: none; padding-left: 0; }
@@ -223,7 +228,7 @@ const GLAZE_TICKER = [
   "<b>CONFIRMED:</b> Professor Chi's office hours run in O(1) time",
   "Professor Chi doesn't use <b>.loc</b> or <b>.iloc</b>. The rows come to Professor Chi.",
   "<b>REPORT:</b> Professor Chi fixed a KeyError just by looking at it",
-  "Professor Chi's cheat sheet is just a picture of himself",
+  "Professor Chi can explain a merge in one sentence and a diagram",
   "The midterm is scared of Professor Chi, not the other way around",
   "<b>STAT:</b> 0 merges have ever had the wrong row count in Professor Chi's presence",
   "Professor Chi once explained density histograms so well the bars got shorter out of respect",
@@ -310,7 +315,7 @@ const QS = [
     code: 'def glaze_level(m):\n    if m >= 3 or m < 6:\n        return "elite"\n    elif m >= 6:\n        return "GOAT"\n    return "great"',
     opts: ['`"GOAT"`', '`"elite"`', '`"great"`', '`None`'], a: 1,
     why: '`8 >= 3` is True, so the whole `or` condition is True and the function returns "elite" right away. With `or`, every number takes the first branch. It should have been `and`.',
-    glaze: "The or-bug robbed Professor Chi of GOAT status. Unforgivable." },
+    glaze: "One sneaky or, a totally different answer. Professor Chi reads every condition twice." },
   { lec: 10, topic: "Iteration", t: 45,
     text: "What is rings after the loop?",
     code: 'rings = 0\nfor x in np.arange(1, 10, 3):\n    if x % 2 == 0:\n        rings = rings + x\n    else:\n        rings = rings - 1',
@@ -321,7 +326,7 @@ const QS = [
     text: "Each student independently has a 0.2 chance of needing Professor Chi to explain something twice. Out of 5 students, what is P(at least one needs a second explanation)?",
     opts: ['0.2⁵', '1 − 0.8⁵', '1 − 0.2⁵', '5 × 0.2'], a: 1,
     why: 'Complement: P(at least one) = 1 − P(none) = 1 − 0.8⁵. The option 1 − 0.2⁵ is the complement of "all five need it", a different event.',
-    glaze: "Honestly 0.2 is generous. Professor Chi gets it right the first time." },
+    glaze: "Asking twice is how learning works. Professor Chi is always happy to explain it again." },
   { lec: 11, topic: "Probability", t: 45,
     text: "60% of Professor Chi's questions are in person and 40% are on Zoom. In person, Professor Chi draws a diagram 25% of the time; on Zoom, 50% of the time. What is P(a random question gets a diagram)?",
     opts: ['0.375', '0.35', '0.15', '0.75'], a: 1,
@@ -349,7 +354,7 @@ const SHAPES = [
 ];
 
 const RIGHT_BARS = ["Professor Chi would be proud", "That's a Chi-level read", "Clean. Bucket.", "Certified Professor Chi student", "Cooking like Professor Chi"];
-const WRONG_BARS = ["Professor Chi saw that", "Go to Professor Chi's OH", "Run it back", "Not the Chi way", "Even Professor Chi missed once (no)"];
+const WRONG_BARS = ["Good try. Here's the trick", "So close", "This one trips up a lot of people", "Now you'll know it Monday", "Great one to learn from"];
 
 const app = document.getElementById("app");
 document.getElementById("ticker").innerHTML = GLAZE_TICKER.map(s => "<span>" + s + "</span>").join("");
@@ -499,7 +504,7 @@ function answer(k) {
     else if (j === k) { b.classList.add("picked", "wrong"); }
     else b.classList.add("dim");
   });
-  const bar = ok ? RIGHT_BARS[S.i % RIGHT_BARS.length] : (k === -1 ? "Time! Professor Chi would've had it" : WRONG_BARS[S.i % WRONG_BARS.length]);
+  const bar = ok ? RIGHT_BARS[S.i % RIGHT_BARS.length] : (k === -1 ? "Out of time. Here's how it works" : WRONG_BARS[S.i % WRONG_BARS.length]);
   const last = S.i === QS.length - 1;
   document.getElementById("revealSlot").innerHTML = `
     <section class="reveal ${ok ? "ok" : "no"}" aria-live="polite">
@@ -523,11 +528,11 @@ function next() {
 }
 
 function rankFor(pct) {
-  if (pct >= 90) return ["Chi-level", "The torch has officially been passed. Go take that midterm personally."];
-  if (pct >= 75) return ["First-team All-Chi", "Elite reads. Clean up the misses below and you're in GOAT territory."];
-  if (pct >= 60) return ["Right on the curve", "That's exactly where a well-written exam question lands. Professor Chi would be proud. Now review the misses."];
-  if (pct >= 40) return ["Sixth man energy", "The fundamentals are there. Take the misses below straight to Professor Chi's OH."];
-  return ["Bench, for now", "Professor Chi has a seat saved for you at office hours. Work the lecture tags below."];
+  if (pct >= 90) return ["Chi-level", "You're ready. Walk into Monday with confidence."];
+  if (pct >= 75) return ["First-team All-Chi", "Strong work. A quick look at the few questions below and you're set."];
+  if (pct >= 60) return ["Right on track", "That's exactly where these questions are designed to land. Review the ones below and you'll pick up points fast."];
+  if (pct >= 40) return ["Building momentum", "You have a real foundation. Each question below lists its lecture, so you know exactly where to look next."];
+  return ["Warm-up round", "These questions are built to be tricky, so this is a normal place to start. Each one below points to a lecture to revisit, and it gets easier with every round."];
 }
 
 function showResults() {
@@ -538,8 +543,8 @@ function showResults() {
   if (S.score > prev) setBest(S.score);
   const [rank, sub] = rankFor(pct);
   const groups = [
-    ["Strings & arrays", [3]], ["DataFrames & queries", [4, 5]], ["Grouping & viz", [6]],
-    ["Histograms", [7]], ["Functions & merges", [8, 9]], ["Control flow", [10]],
+    ["Strings & arrays", [3]], ["DataFrames", [4, 5]], ["Grouping & viz", [6]],
+    ["Histograms", [7]], ["Apply & merge", [8, 9]], ["Control flow", [10]],
     ["Probability", [11]], ["Simulation", [12]]
   ];
   const splits = groups.map(([name, lecs]) => {
@@ -551,26 +556,33 @@ function showResults() {
   const misses = S.log.filter(l => !l.ok).map(l => {
     const q = QS[l.i];
     return `<div class="miss"><span class="mq">Q${l.i + 1} · Lecture ${q.lec} · ${q.topic}</span>
-      <span class="ma">${l.k === -1 ? "Ran out of time." : "You picked: " + md(q.opts[l.k]) + "."} Correct: ${md(q.opts[q.a])}</span></div>`;
+      <span class="ma">${l.k === -1 ? "Ran out of time." : "Your pick: " + md(q.opts[l.k])} · Answer: ${md(q.opts[q.a])}</span></div>`;
   }).join("");
+  const react = pct >= 90 ? ["Professor Chi: \u201cThat's my student.\u201d", "You've put in the work. Trust it on Monday."]
+    : pct >= 60 ? ["Professor Chi would be proud of this one.", "Keep this energy going into Monday."]
+    : ["Professor Chi's office hours are open to you.", "Practice rounds are where the learning happens. Review, play again, and watch your score climb."];
   app.innerHTML = `
-    <div class="eyebrow">Final buzzer</div>
-    <section class="final">
-      <div>
-        <div class="big">${S.score.toLocaleString()}</div>
-        <div class="rank">${rank}</div>
-        <p class="rank-sub">${right} of ${QS.length} correct (${pct}%). ${sub}</p>
-        <div class="react ${pct >= 60 ? "" : "sad"}"><span class="face" aria-hidden="true">PC</span><p><b>${pct >= 90 ? "Professor Chi: \u201cThat's my student.\u201d" : pct >= 60 ? "Professor Chi approves this performance." : "Professor Chi is not mad, just disappointed."}</b>${pct >= 60 ? "Office hours are optional for you." : "His office hours are calling your name. Run it back."}</p></div>
-        <p class="best">${S.score > prev ? "New personal best." : `Personal best: <b>${prev.toLocaleString()}</b>`}</p>
+    <div class="end">
+      <section class="final">
+        <div class="lead">
+          <div class="eyebrow">Final buzzer</div>
+          <div class="head">
+            <div class="big">${S.score.toLocaleString()}</div>
+            <div class="rank">${rank}</div>
+            <p class="rank-sub">${right} of ${QS.length} correct (${pct}%). ${sub}</p>
+          </div>
+          <div class="react"><span class="face" aria-hidden="true">PC</span><p><b>${react[0]}</b>${react[1]}</p></div>
+          <p class="best">${S.score > prev ? "New personal best." : `Personal best: <b>${prev.toLocaleString()}</b>`}</p>
+        </div>
+        <div class="splits"><h3>Box score by topic</h3>${splits}</div>
+      </section>
+      ${misses ? `<section class="missed"><h3>Review these next</h3><p>Every question here is a point you can pick up on Monday.</p><div class="list">${misses}</div></section>` : `<p class="glaze"><span class="avatar" aria-hidden="true">PC</span><span>Perfect game. Professor Chi is reportedly tearing up.</span></p>`}
+      <div class="controls">
+        <button class="btn-primary" id="again">Play again</button>
+        <button class="btn-ghost" id="home">Back to start</button>
       </div>
-      <div class="splits"><h3>Box score by topic</h3>${splits}</div>
-    </section>
-    ${misses ? `<section class="missed"><h3>Film session: your misses</h3>${misses}</section>` : `<p class="glaze"><span class="avatar" aria-hidden="true">PC</span><span>Perfect game. Professor Chi is reportedly tearing up.</span></p>`}
-    <div class="controls">
-      <button class="btn-primary" id="again">Run it back</button>
-      <button class="btn-ghost" id="home">Back to start</button>
-    </div>
-    <footer>Want more reps? Work the full past midterms at practice.dsc10.com under exam conditions, newest first.</footer>`;
+      <footer>Want more practice? Work the full past midterms at practice.dsc10.com under exam conditions, newest first.</footer>
+    </div>`;
   document.getElementById("again").onclick = startGame;
   document.getElementById("home").onclick = renderStart;
   window.scrollTo({ top: 0 });
