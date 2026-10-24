@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chi Guts Host</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar host-only"><a class="brand" href="host.html">Chi <span>Guts</span> · Host</a><span class="sub"><a href="answer-key.html" target="_blank">Answer key</a> · <a href="./">Player page →</a></span></header>
+<main class="wrap wide" id="app"><p class="muted">Loading…</p></main>
+
+<script>
+// ES modules don't load from file://, so the module below never runs there. Say so instead of hanging.
+if (location.protocol === "file:") document.getElementById("app").innerHTML = '<section class="panel"><h2 class="title">Open this through a web server</h2><p class="muted">Browsers block this page\'s scripts when it\'s opened straight from disk. In the repo folder run <code>python3 -m http.server</code>, then open <code>http://localhost:8000/guts/</code>. On GitHub Pages it works as is.</p></section>';
+</script>
+<script type="module">
+import { configured, connect, esc, fmtClock, LETTERS, ranked, boardHTML, setupHTML,
+  ref, onValue, get, set, update, remove, serverTimestamp,
+  signInWithEmailAndPassword, signOut, onAuthStateChanged } from "./common.js";
+import { SETS, PROBLEMS, NUM, SET_OF } from "./problems.js";
+import { KEY, check } from "./key.js";
+
+const app = document.getElementById("app");
+const N = SETS.length;
+const RECENT = "chiguts-host-games";
+const GRACE = 10000;   // matches the +10000 ms grace in database.rules.json
+
+let auth, db, serverNow;
+let pin = null, game = null, unsub = null, ending = false;
+const missingKeys = PROBLEMS.filter(p => !KEY[p.id]).map(p => p.id);
+
+function recent() { try { return JSON.parse(localStorage.getItem(RECENT)) || []; } catch (e) { return []; } }
+function remember(p) { try { localStorage.setItem(RECENT, JSON.stringify([p, ...recent().filter(x => x !== p)].slice(0, 6))); } catch (e) {} }
+const $ = id => document.getElementById(id);
+
+/* ---------- sign in ---------- */
+
+function renderLogin(err = "") {
+  app.innerHTML = `
+    <section><div class="eyebrow">Host console</div><h1 class="wordmark">Chi<span class="gold">Guts</span></h1></section>
+    <form id="login" class="panel form">
+      <label class="field"><span>Host email</span><input type="email" name="email" autocomplete="username" required></label>
+      <label class="field"><span>Password</span><input type="password" name="pw" autocomplete="current-password" required></label>
+      ${err ? `<p class="err" role="alert">${esc(err)}</p>` : ""}
+      <div class="controls"><button class="btn-primary" type="submit">Sign in</button></div>
+    </form>`;
+}
+
+function renderNotHost(u) {
+  app.innerHTML = `<section class="panel">
+    <div class="eyebrow">Almost there</div>
+    <h2 class="title">This account isn't a host yet</h2>
+    <p class="muted">Signed in as ${esc(u.email || "unknown")}. In the Firebase console, open Realtime Database → Data and add <code>hosts/${esc(u.uid)}</code> with the value <code>true</code>. Then reload this page.</p>
+    <div class="controls"><button class="btn-ghost" data-act="signout">Sign out</button></div></section>`;
+}
+
+/* ---------- game picker ---------- */
+
+function renderPicker(err = "") {
+  const r = recent();
+  app.innerHTML = `
+    <section><div class="eyebrow">Host console</div><h1 class="wordmark">Chi<span class="gold">Guts</span></h1></section>
+    ${err ? `<p class="err" role="alert">${esc(err)}</p>` : ""}
+    <form id="create" class="panel form">
+      <h3>New game</h3>
+      <label class="field"><span>Length (minutes)</span><input type="number" name="min" min="5" max="180" value="45" required></label>
+      <div class="controls"><button class="btn-primary" type="submit">Create game</button></div>
+    </form>
+    <form id="open" class="panel form">
+      <h3>Reopen a game</h3>
+      <label class="field"><span>PIN</span><input name="pin" inputmode="numeric" maxlength="8" required></label>
+      <div class="controls"><button class="btn-ghost" type="submit">Open</button></div>
+      ${r.length ? `<div class="recent">${r.map(p => `<button type="button" class="btn-ghost" data-act="open" data-pin="${esc(p)}">${esc(p)}</button>`).join("")}</div>` : ""}
+    </form>
+    <div class="controls"><button class="btn-ghost" data-act="signout">Sign out</button></div>`;
+}
+
+async function createGame(min) {
+  const durationSec = Math.round(Math.min(180, Math.max(5, min)) * 60);
+  for (let tries = 0; tries < 5; tries++) {
+    const p = String(Math.floor(100000 + Math.random() * 900000));
+    if ((await get(ref(db, `games/${p}/meta`))).exists()) continue;
+    await set(ref(db, `games/${p}/meta`), { hostUid: auth.currentUser.uid, status: "lobby", durationSec, reveal: false, created: serverTimestamp() });
+    return openGame(p);
+  }
+  renderPicker("Couldn't find a free PIN. Try again.");
+}
+
+async function openGame(p) {
+  p = String(p).trim();
+  let m = null;
+  try { m = (await get(ref(db, `games/${p}/meta`))).val(); } catch (e) {}
+  if (!m) return renderPicker(`No game with PIN ${p}.`);
+  closeGame(true);
+  pin = p; ending = false; remember(p);
+  history.replaceState(null, "", `?pin=${p}`);
+  unsub = onValue(ref(db, `games/${p}`), snap => { game = snap.val() || {}; grade(); renderConsole(); },
+    e => { closeGame(true); renderPicker("Lost access to that game: " + e.message); });
+}
+
+function closeGame(quiet) {
+  if (unsub) unsub();
+  unsub = null; pin = null; game = null;
+  document.body.classList.remove("projector");
+  if (!quiet) { history.replaceState(null, "", location.pathname); renderPicker(); }
+}
+
+/* ---------- grading ---------- */
+
+// Runs on every change to the game. Writes only what differs, so it settles after one pass.
+function grade() {
+  const teams = game.teams || {}, oldBoard = game.board || {}, updates = {};
+  for (const [tid, t] of Object.entries(teams)) {
+    const sub = t.submitted || {};
+    let score = 0, solved = 0, progress = 0, last = 0;
+    while (progress < N && sub[progress]) progress++;
+    SETS.forEach((set, s) => {
+      if (!sub[s]) return;
+      last = Math.max(last, sub[s].at || 0);
+      set.problems.forEach(p => {
+        const ok = check(p.id, sub[s].answers?.[p.id]);
+        if (t.graded?.[s]?.[p.id] !== ok) updates[`teams/${tid}/graded/${s}/${p.id}`] = ok;
+        if (ok) { score += set.pts; solved++; }
+      });
+    });
+    if (t.score !== score) updates[`teams/${tid}/score`] = score;
+    const b = { name: t.name || tid, score, solved, progress, members: Object.keys(t.members || {}).length, last: last || null };
+    const o = oldBoard[tid] || {};
+    if (Object.keys(b).some(k => (o[k] ?? null) !== b[k])) updates[`board/${tid}`] = b;
+  }
+  for (const tid in oldBoard) if (!teams[tid]) updates[`board/${tid}`] = null;
+  if (Object.keys(updates).length) update(ref(db, `games/${pin}`), updates).catch(e => console.error("grading write failed", e));
+}
+
+/* ---------- console ---------- */
+
+function timeLeft(m) { return m.startAt ? m.startAt + m.durationSec * 1000 - serverNow() : m.durationSec * 1000; }
+
+function renderConsole() {
+  const m = game.meta || {}, teams = game.teams || {};
+  const devices = Object.keys(game.presence || {}).length;
+  const joinUrl = new URL("./", location.href).href;
+  const label = { lobby: "Lobby · length", running: "Time left", ended: "Final" }[m.status] || "";
+  const projector = document.body.classList.contains("projector");
+  const btn = (act, text, cls = "btn-ghost") => `<button class="${cls}" data-act="${act}">${text}</button>`;
+  const controls = [
+    m.status === "lobby" && btn("start", "Start game", "btn-primary"),
+    m.status === "lobby" && btn("minus", "−5 min"),
+    m.status !== "ended" && btn("plus", "+5 min"),
+    m.status === "running" && btn("end", "End game now", "btn-ghost danger"),
+    m.status === "ended" && btn("reveal", m.reveal ? "Hide answers" : "Reveal answers", m.reveal ? "btn-ghost" : "btn-primary"),
+    btn("projector", projector ? "Exit projector view" : "Projector view"),
+    btn("csv", "Export CSV"),
+    btn("switch", "Switch game")
+  ].filter(Boolean).join("");
+
+  app.innerHTML = `
+    <section class="host-top">
+      <div><div class="eyebrow">Join at</div><div class="joinurl">${esc(joinUrl)}</div></div>
+      <div><div class="eyebrow">PIN</div><div class="pin">${esc(pin)}</div></div>
+      <div class="stat"><small>${label}</small><b id="clock">–</b></div>
+    </section>
+    <div class="controls ${projector ? "projector-only" : "host-only"}">${projector ? btn("projector", "Exit projector view") : controls}</div>
+    ${missingKeys.length ? `<p class="err host-only">key.js is missing answers for: ${missingKeys.join(", ")}. Those problems will be marked wrong.</p>` : ""}
+    <p class="muted host-only">${Object.keys(teams).length} teams · ${devices} device${devices === 1 ? "" : "s"} connected${devices >= 90 ? " · close to the free Firebase plan's 100-connection limit" : ""}</p>
+    <section class="panel projector-only"><h3>Scoreboard</h3>${boardHTML(game.board, null, N)}</section>
+    <section class="panel host-only"><h3>Teams</h3>${tableHTML(teams)}
+      <p class="muted">Hover a mark to see the team's answer. ✓ correct · ✗ wrong · — set not submitted yet.</p></section>`;
+  patchClock();
+}
+
+function tableHTML(teams) {
+  const rows = ranked(game.board).filter(r => teams[r.id]);
+  if (!rows.length) return '<p class="muted">No teams yet. Put the join link and PIN on screen.</p>';
+  return `<div class="tbl-wrap"><table class="grid">
+    <thead><tr><th>#</th><th>Team</th><th>Players</th>${SETS.map((s, i) => `<th title="${esc(s.name)}">Set ${i + 1}<small>${s.pts} pts</small></th>`).join("")}<th class="num">Score</th><th></th></tr></thead>
+    <tbody>${rows.map((r, i) => {
+      const t = teams[r.id];
+      const cells = SETS.map((set, s) => {
+        const sub = t.submitted?.[s];
+        if (!sub) return '<td class="marks"><span class="muted">—</span></td>';
+        return `<td class="marks">${set.problems.map(p => {
+          const g = t.graded?.[s]?.[p.id];
+          const a = sub.answers?.[p.id] || "(blank)";
+          return `<i class="${g === true ? "y" : g === false ? "n" : "p"}" title="P${NUM[p.id]}: ${esc(a)}">${g === true ? "✓" : g === false ? "✗" : "·"}</i>`;
+        }).join("")}</td>`;
+      }).join("");
+      return `<tr><td>${i + 1}</td><td><b>${esc(t.name || r.id)}</b></td><td class="players">${esc(Object.values(t.members || {}).join(", "))}</td>${cells}
+        <td class="num"><b>${r.score || 0}</b></td><td><button class="x" data-act="kick" data-t="${esc(r.id)}" title="Remove team" aria-label="Remove ${esc(t.name || r.id)}">×</button></td></tr>`;
+    }).join("")}</tbody></table></div>`;
+}
+
+function patchClock() {
+  const c = $("clock"), m = game?.meta;
+  if (!c || !m) return;
+  const left = m.status === "ended" ? 0 : timeLeft(m);
+  c.textContent = fmtClock(left);
+  c.classList.toggle("low", m.status === "running" && left < 60000);
+}
+
+function publicAnswers() {
+  const out = {};
+  PROBLEMS.forEach(p => {
+    const k = KEY[p.id];
+    if (!k) return;
+    out[p.id] = { show: k.type === "choice" ? `${k.ans} · ${p.opts[LETTERS.indexOf(k.ans)]}` : k.show, why: k.why || "" };
+  });
+  return out;
+}
+
+function exportCSV() {
+  const teams = game.teams || {};
+  const cell = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const head = ["rank", "team", "players", "score", "solved", "sets submitted", ...PROBLEMS.flatMap(p => [`P${NUM[p.id]} (${p.id}) answer`, `P${NUM[p.id]} correct`])];
+  const lines = ranked(game.board).filter(r => teams[r.id]).map((r, i) => {
+    const t = teams[r.id];
+    return [i + 1, t.name || r.id, Object.values(t.members || {}).join("; "), r.score || 0, r.solved || 0, r.progress || 0,
+      ...PROBLEMS.flatMap(p => { const s = SET_OF[p.id]; return [t.submitted?.[s]?.answers?.[p.id] ?? "", t.graded?.[s]?.[p.id] ?? ""]; })];
+  });
+  const csv = [head, ...lines].map(row => row.map(cell).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = `chiguts-${pin}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ---------- events ---------- */
+
+app.addEventListener("submit", e => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  if (e.target.id === "login") {
+    signInWithEmailAndPassword(auth, f.get("email"), f.get("pw"))
+      .catch(err => renderLogin(/invalid|wrong|not-found|credential/.test(err.code || "") ? "Wrong email or password." : "Couldn't sign in: " + (err.code || err.message)));
+  } else if (e.target.id === "create") createGame(+f.get("min") || 45).catch(err => renderPicker("Couldn't create the game: " + err.message));
+  else if (e.target.id === "open") openGame(f.get("pin"));
+});
+
+app.addEventListener("click", e => {
+  const el = e.target.closest("[data-act]");
+  if (!el) return;
+  const act = el.dataset.act, m = game?.meta || {};
+  const meta = pin && ref(db, `games/${pin}/meta`);
+  if (act === "signout") { closeGame(true); signOut(auth); }
+  else if (act === "open") openGame(el.dataset.pin);
+  else if (act === "switch") closeGame();
+  else if (act === "start") update(meta, { status: "running", startAt: serverTimestamp() });
+  else if (act === "plus") update(meta, { durationSec: m.durationSec + 300 });
+  else if (act === "minus") update(meta, { durationSec: Math.max(300, m.durationSec - 300) });
+  else if (act === "end") { if (confirm("End the game now? Teams can't submit after this.")) update(meta, { status: "ended" }); }
+  else if (act === "reveal") update(ref(db, `games/${pin}`), m.reveal ? { "meta/reveal": false, answers: null } : { "meta/reveal": true, answers: publicAnswers() });
+  else if (act === "projector") { document.body.classList.toggle("projector"); renderConsole(); }
+  else if (act === "csv") exportCSV();
+  else if (act === "kick") {
+    const t = game.teams?.[el.dataset.t];
+    if (t && confirm(`Remove team "${t.name || el.dataset.t}"? Their answers are deleted.`)) remove(ref(db, `games/${pin}/teams/${el.dataset.t}`));
+  }
+});
+
+// Clock, plus ending the game once time (and the submission grace period) runs out.
+setInterval(() => {
+  const m = game?.meta;
+  if (!m) return;
+  patchClock();
+  if (m.status === "running" && m.startAt && !ending && timeLeft(m) < -GRACE) {
+    ending = true;
+    update(ref(db, `games/${pin}/meta`), { status: "ended" }).catch(() => { ending = false; });
+  }
+}, 500);
+
+if (!configured) app.innerHTML = setupHTML();
+else {
+  ({ auth, db, serverNow } = connect("host"));
+  onAuthStateChanged(auth, async u => {
+    if (!u) return renderLogin();
+    let ok = false;
+    try { ok = (await get(ref(db, `hosts/${u.uid}`))).val() === true; } catch (e) {}
+    if (!ok) return renderNotHost(u);
+    const p = new URLSearchParams(location.search).get("pin");
+    p ? openGame(p) : renderPicker();
+  });
+}
+</script>
+</body>
+</html>

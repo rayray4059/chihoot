@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chi Guts Answer Key</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+.summary { min-width: 0; }
+.summary td { white-space: normal; }
+.summary code, .ak code { font-family: var(--mono); color: #f3e6c8; }
+.ak-set { display: flex; flex-direction: column; gap: 12px; }
+.ak-set > h2 { margin: 12px 0 0; font-family: var(--display); font-weight: 400; font-size: 26px; letter-spacing: .04em; text-transform: uppercase; }
+.ak-set > h2 small { font-family: var(--body); font-size: 14px; letter-spacing: .1em; color: var(--gold); margin-left: 8px; }
+.ak { background: var(--court); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; break-inside: avoid; }
+.ak .pmeta { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.ak h3 { margin: 0; font-size: 17px; line-height: 1.4; }
+.ak pre { margin: 0; background: #120c19; border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; overflow-x: auto; font-size: 13.5px; color: #f3e6c8; }
+.ak ol { margin: 0; padding-left: 1.6em; list-style: upper-alpha; display: flex; flex-direction: column; gap: 2px; }
+.ak ol li.right { color: var(--good); font-weight: 700; }
+.ak .ans { border-left: 4px solid var(--good); padding: 6px 12px; background: var(--court-2); border-radius: 4px; }
+.ak .ans b { color: var(--good); }
+.ak .why { margin: 0; color: var(--muted); }
+.notes { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+@media print {
+  :root { --ink: #111; --muted: #444; --court: #fff; --court-2: #f3f3f3; --line: #ccc; --good: #0a7a43; --gold: #8a5a00; }
+  body { background: #fff; color: #111; }
+  .topbar, .no-print { display: none; }
+  .ak pre, .summary code, .ak code, .ak pre { background: #f6f6f6; color: #111; }
+  .wrap { padding-block: 0; }
+}
+</style>
+</head>
+<body>
+<header class="topbar"><a class="brand" href="host.html">Chi <span>Guts</span> · Answer key</a><button class="btn-ghost no-print" onclick="print()">Print</button></header>
+<main class="wrap" id="app"><p class="muted">Loading…</p></main>
+
+<script>
+// ES modules don't load from file://, so the module below never runs there. Say so instead of hanging.
+if (location.protocol === "file:") document.getElementById("app").innerHTML = '<section class="panel"><h2 class="title">Open this through a web server</h2><p class="muted">Browsers block this page\'s scripts when it\'s opened straight from disk. In the repo folder run <code>python3 -m http.server</code>, then open <code>http://localhost:8000/guts/answer-key.html</code>. On GitHub Pages it works as is.</p></section>';
+</script>
+<script type="module">
+// Built from problems.js and key.js, so it always matches what the host grades against.
+// esc/md are copied from common.js to avoid loading the Firebase SDK on this page.
+import { SETS, PROBLEMS, NUM } from "./problems.js";
+import { KEY } from "./key.js";
+
+const LETTERS = "ABCD";
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function md(s) { return String(s).replace(/`([^`]+)`/g, (_, c) => "<code>" + esc(c) + "</code>"); }
+
+function short(p) {
+  const k = KEY[p.id];
+  if (!k) return '<span class="err">missing from key.js</span>';
+  if (k.type === "choice") return `<b>${k.ans}</b> · ${md(p.opts[LETTERS.indexOf(k.ans)])}`;
+  return md(k.show);
+}
+
+function accepted(p) {
+  const k = KEY[p.id];
+  if (!k) return "";
+  if (k.type === "num") return k.tol ? `Accepts anything within ±${k.tol} of ${k.ans}.` : `Accepts ${k.ans} written any way (e.g. ${k.ans}.0, or a fraction).`;
+  if (k.type === "str") return `Accepts: ${k.ans.map(a => `<code>${esc(a)}</code>`).join(", ")} (case and quotes ignored).`;
+  return "";
+}
+
+function problem(p, set) {
+  const k = KEY[p.id] || {};
+  const body = p.type === "choice"
+    ? `<ol>${p.opts.map((o, i) => `<li class="${LETTERS[i] === k.ans ? "right" : ""}">${md(o)}${LETTERS[i] === k.ans ? " ✓" : ""}</li>`).join("")}</ol>`
+    : `<div class="ans">Answer: <b>${short(p)}</b><br><small class="muted">${accepted(p)}</small></div>`;
+  return `<article class="ak">
+    <div class="pmeta">P${NUM[p.id]} · ${set.pts} pts · Lecture ${p.lec} · ${esc(p.topic)} · Chihoot Q${p.id.slice(1)}</div>
+    <h3>${md(esc(p.text))}</h3>
+    ${p.code ? `<pre>${esc(p.code)}</pre>` : ""}
+    ${body}
+    ${k.why ? `<p class="why">${md(k.why)}</p>` : ""}
+  </article>`;
+}
+
+const total = SETS.reduce((a, s) => a + s.pts * s.problems.length, 0);
+document.getElementById("app").innerHTML = `
+  <section>
+    <div class="eyebrow">Host only · ${PROBLEMS.length} problems · ${SETS.length} sets · ${total} points</div>
+    <h1 class="title">Chi Guts answer key</h1>
+  </section>
+  <section class="panel">
+    <h3>Quick reference</h3>
+    <div class="tbl-wrap"><table class="summary">
+      <thead><tr><th>#</th><th>Set</th><th>Pts</th><th>Answer</th></tr></thead>
+      <tbody>${SETS.map((s, i) => s.problems.map(p => `<tr><td>P${NUM[p.id]}</td><td>${i + 1} · ${esc(s.name)}</td><td class="num">${s.pts}</td><td>${short(p)}</td></tr>`).join("")).join("")}</tbody>
+    </table></div>
+    <ul class="notes">
+      <li>Grading is automatic. Number answers accept decimals or fractions within the tolerance shown. Text answers ignore case, extra spaces and surrounding quotes. Multiple choice is the letter.</li>
+      <li>To accept another answer, add it to <code>guts/key.js</code>. Then reload the host console, and it re-grades every submission.</li>
+    </ul>
+  </section>
+  ${SETS.map((s, i) => `<section class="ak-set"><h2>Set ${i + 1}: ${esc(s.name)}<small>${s.pts} pts each</small></h2>${s.problems.map(p => problem(p, s)).join("")}</section>`).join("")}`;
+</script>
+</body>
+</html>

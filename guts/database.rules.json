@@ -1,0 +1,65 @@
+{
+  "rules": {
+    "hosts": {
+      "$uid": { ".read": "auth != null && auth.uid === $uid" }
+    },
+    "games": {
+      "$pin": {
+        ".read": "auth != null && root.child('hosts').child(auth.uid).val() === true",
+        ".write": "auth != null && root.child('hosts').child(auth.uid).val() === true",
+        "meta": {
+          ".read": "auth != null",
+          ".validate": "newData.hasChildren(['status', 'durationSec']) && newData.child('status').isString() && newData.child('status').val().matches(/^(lobby|running|ended)$/) && newData.child('durationSec').isNumber()"
+        },
+        "board": { ".read": "auth != null" },
+        "answers": { ".read": "auth != null && root.child('games').child($pin).child('meta/reveal').val() === true" },
+        "presence": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            ".validate": "newData.val() === true"
+          }
+        },
+        "teams": {
+          "$teamId": {
+            ".read": "auth != null && data.child('members').child(auth.uid).exists()",
+            "name": {
+              ".write": "auth != null && !data.exists() && data.parent().child('members').child(auth.uid).exists()",
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30"
+            },
+            "seats": {
+              "$n": {
+                ".write": "auth != null && $n.matches(/^[0-3]$/) && root.child('games').child($pin).child('meta').exists() && root.child('games').child($pin).child('meta/status').val() !== 'ended' && (!data.exists() || data.val() === auth.uid) && (!newData.exists() || newData.val() === auth.uid)"
+              }
+            },
+            "members": {
+              "$uid": {
+                ".write": "auth != null && auth.uid === $uid && root.child('games').child($pin).child('meta/status').val() !== 'ended' && (data.parent().parent().child('seats/0').val() === auth.uid || data.parent().parent().child('seats/1').val() === auth.uid || data.parent().parent().child('seats/2').val() === auth.uid || data.parent().parent().child('seats/3').val() === auth.uid)",
+                ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 30"
+              }
+            },
+            "draft": {
+              "$set": {
+                "$qid": {
+                  ".write": "auth != null && data.parent().parent().parent().child('members').child(auth.uid).exists() && !data.parent().parent().parent().child('submitted').child($set).exists()",
+                  ".validate": "newData.isString() && newData.val().length <= 100"
+                }
+              }
+            },
+            "submitted": {
+              "$set": {
+                ".write": "auth != null && !data.exists() && data.parent().parent().child('members').child(auth.uid).exists() && root.child('games').child($pin).child('meta/status').val() === 'running' && now <= root.child('games').child($pin).child('meta/startAt').val() + root.child('games').child($pin).child('meta/durationSec').val() * 1000 + 10000 && ($set === '0' || ($set === '1' && data.parent().child('0').exists()) || ($set === '2' && data.parent().child('1').exists()) || ($set === '3' && data.parent().child('2').exists()) || ($set === '4' && data.parent().child('3').exists()) || ($set === '5' && data.parent().child('4').exists()))",
+                ".validate": "newData.hasChildren(['at']) && newData.child('at').val() === now",
+                "answers": {
+                  "$qid": { ".validate": "newData.isString() && newData.val().length <= 100" }
+                },
+                "by": { ".validate": "newData.isString() && newData.val().length <= 30" },
+                "at": { ".validate": true },
+                "$other": { ".validate": false }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

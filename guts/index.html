@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chi Guts</title>
+<meta name="description" content="A live, team-based Guts round for DSC 10 midterm review.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar"><a class="brand" href="./">Chi <span>Guts</span></a><a class="sub" href="../">Solo Chihoot →</a></header>
+<main class="wrap" id="app"><p class="muted">Loading…</p></main>
+
+<script>
+// ES modules don't load from file://, so the module below never runs there. Say so instead of hanging.
+if (location.protocol === "file:") document.getElementById("app").innerHTML = '<section class="panel"><h2 class="title">Open this through a web server</h2><p class="muted">Browsers block this page\'s scripts when it\'s opened straight from disk. In the repo folder run <code>python3 -m http.server</code>, then open <code>http://localhost:8000/guts/</code>. On GitHub Pages it works as is.</p></section>';
+</script>
+<script type="module">
+import { configured, connect, esc, md, slug, fmtClock, LETTERS, SHAPES, ranked, boardHTML, setupHTML, sheetHTML,
+  ref, onValue, get, set, serverTimestamp, onDisconnect, signInAnonymously } from "./common.js";
+import { SETS, PROBLEMS, NUM } from "./problems.js";
+
+const app = document.getElementById("app");
+const N = SETS.length;
+const SAVE = "chiguts-player";
+
+let auth, db, serverNow;
+let uid = null, me = null;                       // me: { pin, teamId, teamName, name }
+let meta = null, team = null, board = {}, answers = null;
+let subs = [], ansSub = null, viewKey = "", autoSent = {}, timers = {};
+
+function load() { try { return JSON.parse(localStorage.getItem(SAVE)); } catch (e) { return null; } }
+function save(v) { try { v ? localStorage.setItem(SAVE, JSON.stringify(v)) : localStorage.removeItem(SAVE); } catch (e) {} }
+const base = () => `games/${me.pin}/teams/${me.teamId}`;
+const $ = id => document.getElementById(id);
+
+function currentSet() { const s = team?.submitted || {}; let i = 0; while (i < N && s[i]) i++; return i; }
+function timeLeft() { return meta.startAt ? meta.startAt + meta.durationSec * 1000 - serverNow() : meta.durationSec * 1000; }
+function phase() {
+  if (!meta || !team) return "loading";
+  if (meta.status === "lobby") return "lobby";
+  if (meta.status === "ended") return "ended";
+  if (timeLeft() <= 0) return "time";
+  return currentSet() >= N ? "done" : "set";
+}
+const keyNow = () => [phase(), currentSet(), !!answers].join("|");
+
+/* ---------- join ---------- */
+
+function renderJoin(pref = {}, err = "") {
+  const pin = pref.pin || new URLSearchParams(location.search).get("pin") || "";
+  app.innerHTML = `
+    <section>
+      <div class="eyebrow">DSC 10 · Midterm review · Team round</div>
+      <h1 class="wordmark">Chi<span class="gold">Guts</span></h1>
+      <p class="lede">${N} sets, one clock. Your team unlocks each set by submitting the one before it, and every set is worth more than the last.</p>
+    </section>
+    <form id="joinForm" class="panel form" autocomplete="off">
+      <label class="field"><span>Game PIN</span><input name="pin" inputmode="numeric" maxlength="8" value="${esc(pin)}" required></label>
+      <label class="field"><span>Team name</span><input name="team" maxlength="30" value="${esc(pref.teamName || "")}" required><small>Teammates type the same team name to join you. Up to 4 per team.</small></label>
+      <label class="field"><span>Your name</span><input name="name" maxlength="30" value="${esc(pref.name || "")}" required></label>
+      ${err ? `<p class="err" role="alert">${esc(err)}</p>` : ""}
+      <div class="controls"><button class="btn-primary" type="submit">Join</button></div>
+    </form>`;
+  const first = app.querySelector(pin ? 'input[name=team]' : 'input[name=pin]');
+  if (first && !err) first.focus();
+}
+
+async function join(s, resume) {
+  const pin = String(s.pin || "").trim(), teamName = String(s.teamName || "").trim(), name = String(s.name || "").trim();
+  const teamId = slug(teamName);
+  if (!/^\d{4,8}$/.test(pin)) return renderJoin(s, "Enter the game PIN from the host's screen.");
+  if (!teamId) return renderJoin(s, "Team name needs at least one letter or number.");
+  if (!name) return renderJoin(s, "Enter your name.");
+  let m;
+  try { m = (await get(ref(db, `games/${pin}/meta`))).val(); }
+  catch (e) { return renderJoin(s, "Couldn't reach the game server. Check your connection and try again."); }
+  if (!m) { if (resume) save(null); return renderJoin(s, resume ? "" : `No game with PIN ${pin}.`); }
+  const teamPath = `games/${pin}/teams/${teamId}`;
+  let already = false;
+  try { already = (await get(ref(db, `${teamPath}/members/${uid}`))).exists(); } catch (e) {}
+  if (!already) {
+    if (m.status === "ended") { if (resume) save(null); return renderJoin(s, "That game has ended."); }
+    // Claim one of the team's 4 seats first; the rules only let seated players become members.
+    let seated = false;
+    for (let n = 0; n < 4 && !seated; n++) {
+      try { await set(ref(db, `${teamPath}/seats/${n}`), uid); seated = true; } catch (e) {}
+    }
+    if (!seated) return renderJoin(s, "That team already has 4 players. Pick another team name.");
+    try { await set(ref(db, `${teamPath}/members/${uid}`), name.slice(0, 30)); }
+    catch (e) { return renderJoin(s, "Couldn't join that team. Try again."); }
+  }
+  try { if (!(await get(ref(db, `${teamPath}/name`))).exists()) await set(ref(db, `${teamPath}/name`), teamName.slice(0, 30)); } catch (e) {}
+
+  me = { pin, teamId, teamName, name };
+  save(me);
+  history.replaceState(null, "", location.pathname);
+  subs.push(onValue(ref(db, ".info/connected"), c => {
+    if (!c.val() || !me) return;
+    const p = ref(db, `games/${pin}/presence/${uid}`);
+    onDisconnect(p).remove();
+    set(p, true).catch(() => {});
+  }));
+  subs.push(onValue(ref(db, `games/${pin}/meta`), snap => {
+    meta = snap.val();
+    if (!meta) return leave("That game was deleted.");
+    syncAnswers(); render();
+  }));
+  subs.push(onValue(ref(db, `games/${pin}/board`), snap => { board = snap.val() || {}; render(); }));
+  subs.push(onValue(ref(db, teamPath), snap => {
+    team = snap.val();
+    if (!team) return leave("Your team was removed by the host.");
+    render();
+  }, () => leave("You're no longer on that team.")));
+}
+
+function syncAnswers() {
+  if (meta.reveal && !ansSub) {
+    ansSub = onValue(ref(db, `games/${me.pin}/answers`), snap => { answers = snap.val(); render(); }, () => { ansSub = null; answers = null; });
+  } else if (!meta.reveal && ansSub) { ansSub(); ansSub = null; answers = null; }
+}
+
+function leave(msg) {
+  subs.forEach(u => u()); subs = [];
+  if (ansSub) { ansSub(); ansSub = null; }
+  const prev = me, seats = team?.seats || {};
+  if (prev) {
+    set(ref(db, `games/${prev.pin}/presence/${uid}`), null).catch(() => {});
+    if (!msg && meta?.status !== "ended") {
+      // Drop membership before the seat: the rules check the seat when the member entry is written.
+      const tp = `games/${prev.pin}/teams/${prev.teamId}`;
+      const seat = Object.keys(seats).find(n => seats[n] === uid);
+      set(ref(db, `${tp}/members/${uid}`), null)
+        .then(() => seat !== undefined && set(ref(db, `${tp}/seats/${seat}`), null))
+        .catch(() => {});
+    }
+  }
+  me = null; meta = null; team = null; answers = null; board = {}; viewKey = ""; autoSent = {};
+  save(null);
+  renderJoin({ pin: prev?.pin, name: prev?.name }, msg || "");
+}
+
+/* ---------- game views ---------- */
+
+function topHTML(ph, cur) {
+  return `<div class="board">
+    <div><div class="q">${esc(team?.name || me.teamName)}</div><div class="who" id="members"></div></div>
+    <div class="lec mid">PIN ${esc(me.pin)}${ph === "set" ? ` · Set ${cur + 1}/${N}` : ""}</div>
+    <div class="stat"><small>Score</small><b id="score">0</b></div>
+    <div class="stat"><small>Time</small><b id="clock">–</b></div>
+  </div>`;
+}
+
+const lbPanel = title => `<section class="panel"><h3>${title}</h3><div id="lb"></div></section>`;
+
+function problemHTML(p) {
+  const input = p.type === "choice"
+    ? `<div class="tiles" role="group" aria-label="Answer choices">${p.opts.map((o, k) =>
+        `<button class="tile" data-q="${p.id}" data-v="${LETTERS[k]}">${SHAPES[k]}<span class="txt">${md(o)}</span><span class="key">${LETTERS[k]}</span></button>`).join("")}</div>`
+    : `<label class="answer"><span>${esc(p.hint)}</span><input data-q="${p.id}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="100"${p.type === "num" ? ' inputmode="decimal"' : ""}></label>`;
+  return `<section class="prompt">
+    <div class="pmeta">Problem ${NUM[p.id]} · Lecture ${p.lec} · ${esc(p.topic)}</div>
+    <h2>${md(esc(p.text))}</h2>
+    ${p.code ? `<pre>${esc(p.code)}</pre>` : ""}
+    ${input}
+  </section>`;
+}
+
+function view(ph, cur) {
+  if (ph === "loading") return '<p class="muted">Joining…</p>';
+  const top = topHTML(ph, cur);
+  const leaveBtn = label => `<div class="controls"><button class="btn-ghost" data-act="leave">${label}</button></div>`;
+  if (ph === "lobby") return `${top}
+    <section class="panel">
+      <div class="eyebrow">Lobby</div>
+      <h2 class="title">Waiting for the host to tip off</h2>
+      <p class="muted">Teammates join with the same PIN and team name. When the clock starts you'll see Set 1. Submitting a set locks your answers and unlocks the next one. Unsubmitted sets score nothing, so keep moving.</p>
+      <ol class="muted setlist">${SETS.map(s => `<li>${esc(s.name)}: <b>${s.pts}</b> pts per problem</li>`).join("")}</ol>
+    </section>
+    ${sheetHTML()}
+    ${lbPanel("Teams in")}
+    ${leaveBtn("Leave team")}`;
+  if (ph === "set") {
+    const s = SETS[cur], last = cur === N - 1;
+    return `${top}
+      <section>
+        <div class="eyebrow">Set ${cur + 1} of ${N} · ${s.pts} points each</div>
+        <h2 class="title">${esc(s.name)}</h2>
+        <p class="muted">Answers sync across your team as you type. Submitting locks them in${last ? "." : ` and unlocks Set ${cur + 2}.`}</p>
+      </section>
+      ${s.problems.map(problemHTML).join("")}
+      <button class="sheet-link" data-act="sheet">Show data sheet</button>
+      <div id="sheetSlot" hidden></div>
+      <div class="controls"><button class="btn-primary" data-act="submit">Submit set ${cur + 1}</button><p class="err" id="err" role="alert"></p></div>
+      ${lbPanel("Scoreboard")}`;
+  }
+  if (ph === "done") return `${top}
+    <section class="panel"><div class="eyebrow">All in</div><h2 class="title">All ${N} sets submitted</h2>
+      <p class="muted">Nice work. Hang tight for the final buzzer.</p></section>
+    ${lbPanel("Scoreboard")}`;
+  if (ph === "time") return `${top}
+    <section class="panel"><div class="eyebrow">Buzzer</div><h2 class="title">Time!</h2>
+      <p class="muted">Waiting for the host to post final results.</p></section>
+    ${lbPanel("Scoreboard")}`;
+  // ended
+  const rows = ranked(board), rank = rows.findIndex(r => r.id === me.teamId) + 1, b = board[me.teamId] || {};
+  return `${top}
+    <section>
+      <div class="eyebrow">Final buzzer</div>
+      <div class="big">${b.score || 0}</div>
+      <h2 class="title">${rank ? `#${rank} of ${rows.length}` : ""}</h2>
+      <p class="muted">${b.solved || 0} of ${PROBLEMS.length} correct · ${b.progress || 0} of ${N} sets submitted</p>
+    </section>
+    ${lbPanel("Final standings")}
+    ${answers ? reviewHTML() : '<p class="muted">The host will reveal the answers here.</p>'}
+    ${leaveBtn("Join another game")}`;
+}
+
+function reviewHTML() {
+  return `<section class="review"><h3 class="title">Answers</h3>${SETS.map((set, s) => set.problems.map(p => {
+    const a = answers[p.id] || { show: "?", why: "" };
+    const sub = team.submitted?.[s];
+    const v = sub?.answers?.[p.id] || "";
+    const ok = team.graded?.[s]?.[p.id] === true;
+    const k = LETTERS.indexOf(v);
+    const yours = !sub ? "not submitted" : !v ? "blank" : p.type === "choice" && k >= 0 ? `${v} · ${md(p.opts[k])}` : `<code>${esc(v)}</code>`;
+    return `<div class="miss ${ok ? "ok" : ""}">
+      <span class="mq">${ok ? "✓" : "✗"} P${NUM[p.id]} · Set ${s + 1} · Lecture ${p.lec} · ${esc(p.topic)}</span>
+      <span class="ma">You: ${yours} · Answer: ${md(a.show)}</span>
+      <p class="why">${md(a.why)}</p></div>`;
+  }).join("")).join("")}</section>`;
+}
+
+function render() {
+  if (!me) return;
+  const ph = phase(), cur = currentSet(), key = keyNow();
+  if (key !== viewKey) { viewKey = key; app.innerHTML = view(ph, cur); }
+  patch(ph, cur);
+}
+
+// Update live values in place so typing isn't interrupted by teammates' edits.
+function patch(ph, cur) {
+  if ($("score")) $("score").textContent = board[me.teamId]?.score ?? team?.score ?? 0;
+  if ($("members")) $("members").textContent = Object.values(team?.members || {}).join(" · ");
+  if ($("lb")) $("lb").innerHTML = boardHTML(board, me.teamId, N);
+  if (ph === "set") {
+    const d = team.draft?.[cur] || {};
+    app.querySelectorAll("input[data-q]").forEach(i => {
+      const v = d[i.dataset.q] ?? "";
+      if (document.activeElement !== i && !timers[i.dataset.q] && i.value !== v) i.value = v;
+    });
+    app.querySelectorAll(".tile[data-v]").forEach(b => b.classList.toggle("sel", d[b.dataset.q] === b.dataset.v));
+  }
+  patchClock();
+}
+
+function patchClock() {
+  const c = $("clock");
+  if (!c || !meta) return;
+  const left = meta.status === "ended" ? 0 : timeLeft();
+  c.textContent = fmtClock(left);
+  c.classList.toggle("low", meta.status === "running" && left < 60000);
+}
+
+/* ---------- answering ---------- */
+
+function writeDraft(q, v) {
+  clearTimeout(timers[q]); delete timers[q];
+  set(ref(db, `${base()}/draft/${currentSet()}/${q}`), String(v).slice(0, 100)).catch(() => {});
+}
+function queueDraft(q, v) {
+  clearTimeout(timers[q]);
+  timers[q] = setTimeout(() => writeDraft(q, v), 250);
+}
+
+function collect(s) {
+  const d = { ...(team?.draft?.[s] || {}) };
+  app.querySelectorAll("input[data-q]").forEach(i => { d[i.dataset.q] = i.value; });
+  const out = {};
+  SETS[s].problems.forEach(p => { out[p.id] = String(d[p.id] ?? "").trim().slice(0, 100); });
+  return out;
+}
+
+async function submitSet(s, auto) {
+  if (s >= N) return;
+  const out = collect(s);
+  const blanks = Object.values(out).filter(v => !v).length;
+  if (!auto && !confirm(`Lock in Set ${s + 1}?${blanks ? ` ${blanks} answer${blanks > 1 ? "s are" : " is"} blank.` : ""} You can't change these answers after submitting.`)) return;
+  const btn = app.querySelector('[data-act="submit"]');
+  if (btn) { btn.disabled = true; btn.textContent = "Submitting…"; }
+  try {
+    await set(ref(db, `${base()}/submitted/${s}`), { answers: out, at: serverTimestamp(), by: me.name.slice(0, 30) });
+  } catch (e) {
+    if (auto) return;
+    if (btn) { btn.disabled = false; btn.textContent = `Submit set ${s + 1}`; }
+    if ($("err")) $("err").textContent = "Couldn't submit. A teammate may have just submitted, or time is up.";
+  }
+}
+
+app.addEventListener("submit", e => {
+  if (e.target.id !== "joinForm") return;
+  e.preventDefault();
+  const f = new FormData(e.target);
+  e.target.querySelector("button").disabled = true;
+  join({ pin: f.get("pin"), teamName: f.get("team"), name: f.get("name") }, false);
+});
+app.addEventListener("input", e => { if (e.target.matches("input[data-q]")) queueDraft(e.target.dataset.q, e.target.value); });
+app.addEventListener("change", e => { if (e.target.matches("input[data-q]")) writeDraft(e.target.dataset.q, e.target.value); });
+app.addEventListener("click", e => {
+  const tile = e.target.closest(".tile[data-v]");
+  if (tile) {
+    const q = tile.dataset.q, curV = team?.draft?.[currentSet()]?.[q];
+    writeDraft(q, curV === tile.dataset.v ? "" : tile.dataset.v);
+    return;
+  }
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if (act === "submit") submitSet(currentSet(), false);
+  else if (act === "leave") { if (meta?.status === "ended" || confirm("Leave your team?")) leave(); }
+  else if (act === "sheet") {
+    const slot = $("sheetSlot"), btn = e.target.closest("[data-act]");
+    if (slot.hidden) { slot.innerHTML = sheetHTML(); slot.hidden = false; btn.textContent = "Hide data sheet"; }
+    else { slot.hidden = true; btn.textContent = "Show data sheet"; }
+  }
+});
+
+// Clock, plus a last-second auto-submit of whatever the team has drafted when time runs out.
+setInterval(() => {
+  if (!me || !meta || !team) return;
+  const cur = currentSet();
+  if (meta.status === "running" && meta.startAt && timeLeft() <= 0 && cur < N && !autoSent[cur]) {
+    autoSent[cur] = true;
+    if (Object.values(collect(cur)).some(v => v)) submitSet(cur, true);
+  }
+  if (keyNow() !== viewKey) render(); else patchClock();
+}, 250);
+
+if (!configured) app.innerHTML = setupHTML();
+else {
+  ({ auth, db, serverNow } = connect("player"));
+  signInAnonymously(auth).then(cred => {
+    uid = cred.user.uid;
+    const saved = load();
+    saved ? join(saved, true) : renderJoin();
+  }).catch(() => {
+    app.innerHTML = `<section class="panel"><h2 class="title">Couldn't sign in</h2><p class="muted">Anonymous sign-in failed. The host may need to enable it in Firebase, or add this site to Firebase Auth's authorized domains.</p></section>`;
+  });
+}
+</script>
+</body>
+</html>

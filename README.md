@@ -38,6 +38,49 @@ Everything lives in `index.html`; there is no build step. The questions are the 
 
 The news-ticker lines are in `GLAZE_TICKER`, and the end-of-game ranks are in `rankFor`.
 
+## Guts mode (live team round)
+
+`guts/` is a separate, hosted version of the game: a Guts round like the ones at math competitions. The solo game above doesn't depend on it.
+
+- Teams of up to 4 join on their own devices with a game PIN and a team name. Everyone on a team shares one answer sheet that syncs live.
+- The same 19 questions are split into 6 sets that get harder as you go, worth 5, 7, 9, 12, 15 and 20 points per problem (224 total). Submitting a set locks it and unlocks the next one. Everyone plays against a single game clock.
+- Answers are short answers, graded automatically. Questions that only make sense as multiple choice keep their four options.
+- The host console shows the PIN, the clock, every team's answers and a live scoreboard. It also has a projector view, a reveal-answers button for after the game and a CSV export.
+
+Players go to `https://<your-username>.github.io/chihoot/guts/`. The host goes to `…/guts/host.html`.
+
+### One-time setup (Firebase, free plan)
+
+Guts mode needs a small realtime database so devices can see each other. It uses Firebase, so the site can stay on GitHub Pages with no server to run.
+
+1. Create a project at [console.firebase.google.com](https://console.firebase.google.com). Google Analytics isn't needed.
+2. **Build → Realtime Database → Create database.** Pick any location and start in locked mode.
+3. **Realtime Database → Rules:** replace the rules with the contents of `guts/database.rules.json` and click **Publish**.
+4. **Build → Authentication → Get started.** Under **Sign-in method**, enable **Anonymous** (for players) and **Email/Password** (for the host).
+5. **Authentication → Users → Add user:** create the host account. This email and password are the host login. Copy the account's **User UID**.
+6. **Realtime Database → Data:** add a child `hosts`, and under it a child named with that UID, set to the value `true`. That's what makes the account a host.
+7. **Authentication → Settings → Authorized domains:** add `<your-username>.github.io`.
+8. **Project settings → Your apps → Web (`</>`):** register an app. Leave "Firebase Hosting" unchecked, because GitHub Pages does the hosting. Then copy the values from its `firebaseConfig` into `guts/firebase-config.js` and skip the SDK and CLI steps. If the snippet has no `databaseURL`, copy it from the top of the Realtime Database → Data tab. The config isn't a secret; the rules are what protect the data.
+
+To test locally, run `python3 -m http.server` in the repo and open `http://localhost:8000/guts/`. The pages use ES modules, so opening the files directly from disk won't work.
+
+### Running a game
+
+1. Sign in at `guts/host.html`, choose a length (45 minutes by default) and create the game.
+2. Put the join link and PIN on screen. **Projector view** hides the answers and controls.
+3. When the teams are in, click **Start game**. You can add or remove time in 5-minute steps.
+4. Keep the host tab open. It does the grading, so scores only update while it's open.
+5. The game ends on its own when time runs out, or when you click **End game now**. When the clock hits zero, each team's current set is submitted automatically with whatever they've drafted. Then click **Reveal answers** so teams can see explanations, and **Export CSV** if you want a record.
+
+**Limits:** the free plan allows 100 devices connected at the same time, and the console shows how many are connected. For a full lecture hall, have each team use one device or upgrade to the pay-as-you-go plan, which costs about nothing at this scale.
+
+### Editing Guts problems
+
+- `guts/problems.js` holds the problems and the sets (no answers).
+- `guts/key.js` holds the answers. Each one is `num` (with an optional `tol`), `str` (a list of accepted strings; case and quotes are ignored) or `choice` (a letter).
+- If you change the number of sets, extend the `submitted/$set` chain in `guts/database.rules.json` to match and publish the rules again.
+- The answer key is public in the repo, like the solo game's. What the rules prevent is teams writing their own scores or changing a set after submitting it.
+
 ## Credits
 
 Questions are original, written in the style of past DSC 10 exams. This is an unofficial, fan-made study tool and is not affiliated with the course staff.
