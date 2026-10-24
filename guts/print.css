@@ -1,0 +1,29 @@
+/* Shared by the printable pages: answer-key.html and problems-sheet.html. */
+.summary { min-width: 0; }
+.summary td { white-space: normal; }
+.summary code, .ak code { font-family: var(--mono); color: #f3e6c8; }
+.ak-set { display: flex; flex-direction: column; gap: 12px; }
+.ak-set > h2 { margin: 12px 0 0; font-family: var(--display); font-weight: 400; font-size: 26px; letter-spacing: .04em; text-transform: uppercase; }
+.ak-set > h2 small { font-family: var(--body); font-size: 14px; letter-spacing: .1em; color: var(--gold); margin-left: 8px; }
+.ak { background: var(--court); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; break-inside: avoid; }
+.ak .pmeta { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.ak h3 { margin: 0; font-size: 17px; line-height: 1.4; }
+.ak pre { margin: 0; background: #120c19; border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; overflow-x: auto; font-size: 13.5px; color: #f3e6c8; }
+.ak ol { margin: 0; padding-left: 1.6em; list-style: upper-alpha; display: flex; flex-direction: column; gap: 2px; }
+.ak ol li.right { color: var(--good); font-weight: 700; }
+.ak .ans { border-left: 4px solid var(--good); padding: 6px 12px; background: var(--court-2); border-radius: 4px; }
+.ak .ans b { color: var(--good); }
+.ak .why { margin: 0; color: var(--muted); }
+.notes { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+@media print {
+  :root { --ink: #111; --muted: #444; --court: #fff; --court-2: #f3f3f3; --line: #ccc; --good: #0a7a43; --gold: #8a5a00; }
+  body { background: #fff; color: #111; }
+  .topbar, .no-print { display: none; }
+  .ak pre, .summary code, .ak code { background: #f6f6f6; color: #111; }
+  .wrap { padding-block: 0; }
+}
+/* blank answer space on problems-sheet.html */
+.blank { border-bottom: 2px solid var(--line); min-height: 52px; max-width: 460px; display: flex; align-items: flex-start; }
+.blank.short { max-width: 200px; }
+.blank span { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .06em; }
+@media print { .sheet { break-inside: avoid; } .blank { border-bottom-color: #999; } }

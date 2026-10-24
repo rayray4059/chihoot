@@ -8,31 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
-<style>
-.summary { min-width: 0; }
-.summary td { white-space: normal; }
-.summary code, .ak code { font-family: var(--mono); color: #f3e6c8; }
-.ak-set { display: flex; flex-direction: column; gap: 12px; }
-.ak-set > h2 { margin: 12px 0 0; font-family: var(--display); font-weight: 400; font-size: 26px; letter-spacing: .04em; text-transform: uppercase; }
-.ak-set > h2 small { font-family: var(--body); font-size: 14px; letter-spacing: .1em; color: var(--gold); margin-left: 8px; }
-.ak { background: var(--court); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; break-inside: avoid; }
-.ak .pmeta { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-.ak h3 { margin: 0; font-size: 17px; line-height: 1.4; }
-.ak pre { margin: 0; background: #120c19; border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; overflow-x: auto; font-size: 13.5px; color: #f3e6c8; }
-.ak ol { margin: 0; padding-left: 1.6em; list-style: upper-alpha; display: flex; flex-direction: column; gap: 2px; }
-.ak ol li.right { color: var(--good); font-weight: 700; }
-.ak .ans { border-left: 4px solid var(--good); padding: 6px 12px; background: var(--court-2); border-radius: 4px; }
-.ak .ans b { color: var(--good); }
-.ak .why { margin: 0; color: var(--muted); }
-.notes { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
-@media print {
-  :root { --ink: #111; --muted: #444; --court: #fff; --court-2: #f3f3f3; --line: #ccc; --good: #0a7a43; --gold: #8a5a00; }
-  body { background: #fff; color: #111; }
-  .topbar, .no-print { display: none; }
-  .ak pre, .summary code, .ak code, .ak pre { background: #f6f6f6; color: #111; }
-  .wrap { padding-block: 0; }
-}
-</style>
+<link rel="stylesheet" href="print.css">
 </head>
 <body>
 <header class="topbar"><a class="brand" href="host.html">Chi <span>Guts</span> · Answer key</a><button class="btn-ghost no-print" onclick="print()">Print</button></header>
@@ -44,13 +20,9 @@ if (location.protocol === "file:") document.getElementById("app").innerHTML = '<
 </script>
 <script type="module">
 // Built from problems.js and key.js, so it always matches what the host grades against.
-// esc/md are copied from common.js to avoid loading the Firebase SDK on this page.
 import { SETS, PROBLEMS, NUM } from "./problems.js";
 import { KEY } from "./key.js";
-
-const LETTERS = "ABCD";
-function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
-function md(s) { return String(s).replace(/`([^`]+)`/g, (_, c) => "<code>" + esc(c) + "</code>"); }
+import { esc, md, LETTERS } from "./text.js";
 
 function short(p) {
   const k = KEY[p.id];

@@ -215,7 +215,7 @@ function view(ph, cur) {
     </section>
     ${lbPanel("Final standings")}
     ${answers ? reviewHTML() : '<p class="muted">The host will reveal the answers here.</p>'}
-    ${leaveBtn("Join another game")}`;
+    <div class="controls"><a class="btn-ghost" href="problems-sheet.html" target="_blank">Printable problem sheet</a><button class="btn-ghost" data-act="leave">Join another game</button></div>`;
 }
 
 function reviewHTML() {

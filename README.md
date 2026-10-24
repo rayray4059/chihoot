@@ -43,7 +43,7 @@ The news-ticker lines are in `GLAZE_TICKER`, and the end-of-game ranks are in `r
 `guts/` is a separate, hosted version of the game: a Guts round like the ones at math competitions. The solo game above doesn't depend on it.
 
 - Teams of up to 4 join on their own devices with a game PIN and a team name. Everyone on a team shares one answer sheet that syncs live.
-- The same 19 questions are split into 6 sets that get harder as you go, worth 5, 7, 9, 12, 15 and 20 points per problem (224 total). Submitting a set locks it and unlocks the next one. Everyone plays against a single game clock.
+- The same 19 questions are split into 6 sets that get harder as you go, worth 10, 11, 12, 13, 14 and 15 points per problem (240 total). Submitting a set locks it and unlocks the next one. Everyone plays against a single game clock.
 - Answers are short answers, graded automatically. Questions that only make sense as multiple choice keep their four options.
 - The host console shows the PIN, the clock, every team's answers and a live scoreboard. It also has a projector view, a reveal-answers button for after the game and a CSV export.
 

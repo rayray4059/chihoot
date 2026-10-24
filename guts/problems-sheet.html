@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chi Guts Problems</title>
+<meta name="description" content="Every Chi Guts problem on one printable sheet, without answers, for review after the game.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="print.css">
+</head>
+<body>
+<header class="topbar"><a class="brand" href="./">Chi <span>Guts</span> · Problems</a><button class="btn-ghost no-print" onclick="print()">Print</button></header>
+<main class="wrap" id="app"><p class="muted">Loading…</p></main>
+
+<script>
+// ES modules don't load from file://, so the module below never runs there. Say so instead of hanging.
+if (location.protocol === "file:") document.getElementById("app").innerHTML = '<section class="panel"><h2 class="title">Open this through a web server</h2><p class="muted">Browsers block this page\'s scripts when it\'s opened straight from disk. In the repo folder run <code>python3 -m http.server</code>, then open <code>http://localhost:8000/guts/problems-sheet.html</code>. On GitHub Pages it works as is.</p></section>';
+</script>
+<script type="module">
+// Built from problems.js, so it always matches the game. No answers on this page.
+import { SETS, PROBLEMS, NUM } from "./problems.js";
+import { esc, md, LETTERS, sheetHTML } from "./text.js";
+
+function problem(p, set) {
+  const blank = p.type === "choice"
+    ? `<ol>${p.opts.map(o => `<li>${md(o)}</li>`).join("")}</ol><div class="blank short"><span>Answer</span></div>`
+    : `<div class="blank"><span>${esc(p.hint)}</span></div>`;
+  return `<article class="ak">
+    <div class="pmeta">P${NUM[p.id]} · ${set.pts} pts · Lecture ${p.lec} · ${esc(p.topic)}</div>
+    <h3>${md(esc(p.text))}</h3>
+    ${p.code ? `<pre>${esc(p.code)}</pre>` : ""}
+    ${blank}
+  </article>`;
+}
+
+const total = SETS.reduce((a, s) => a + s.pts * s.problems.length, 0);
+document.getElementById("app").innerHTML = `
+  <section>
+    <div class="eyebrow">DSC 10 midterm review · ${PROBLEMS.length} problems · ${SETS.length} sets · ${total} points</div>
+    <h1 class="title">Chi Guts problems</h1>
+    <p class="muted">Every problem from the round, without answers. Rework the ones your team missed, then check them against the reveal on the game page.</p>
+  </section>
+  ${sheetHTML()}
+  ${SETS.map((s, i) => `<section class="ak-set"><h2>Set ${i + 1}: ${esc(s.name)}<small>${s.pts} pts each</small></h2>${s.problems.map(p => problem(p, s)).join("")}</section>`).join("")}`;
+</script>
+</body>
+</html>

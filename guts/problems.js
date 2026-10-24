@@ -67,12 +67,12 @@ for (const id in P) P[id].id = id;
 // before q10 (q10 reuses q9's data). pts is per problem. If you change the number of sets,
 // extend the submitted/$set chain in database.rules.json to match.
 export const SETS = [
-  { name: "Strings, arrays & DataFrames", pts: 5, problems: [P.q2, P.q1, P.q4] },
-  { name: "Querying", pts: 7, problems: [P.q3, P.q5, P.q6] },
-  { name: "Grouping & visualization", pts: 9, problems: [P.q8, P.q7, P.q12] },
-  { name: "Histograms & apply", pts: 12, problems: [P.q11, P.q9, P.q10] },
-  { name: "Merging & control flow", pts: 15, problems: [P.q15, P.q14, P.q13] },
-  { name: "Probability & simulation", pts: 20, problems: [P.q19, P.q16, P.q17, P.q18] }
+  { name: "Strings, arrays & DataFrames", pts: 10, problems: [P.q2, P.q1, P.q4] },
+  { name: "Querying", pts: 11, problems: [P.q3, P.q5, P.q6] },
+  { name: "Grouping & visualization", pts: 12, problems: [P.q8, P.q7, P.q12] },
+  { name: "Histograms & apply", pts: 13, problems: [P.q11, P.q9, P.q10] },
+  { name: "Merging & control flow", pts: 14, problems: [P.q15, P.q14, P.q13] },
+  { name: "Probability & simulation", pts: 15, problems: [P.q19, P.q16, P.q17, P.q18] }
 ];
 
 export const PROBLEMS = SETS.flatMap(s => s.problems);
