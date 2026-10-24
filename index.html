@@ -165,6 +165,7 @@ td.num { font-variant-numeric: tabular-nums; text-align: right; }
 .reveal .bar .pts { font-variant-numeric: tabular-nums; }
 .reveal .body { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
 .reveal .why { margin: 0; max-width: 68ch; }
+.why-img { display: block; width: 100%; max-width: 440px; height: auto; background: #fff; border-radius: 6px; padding: 6px; }
 .reveal .why code { font-family: var(--mono); font-size: 14px; color: #f3e6c8; }
 .glaze { margin: 0; display: flex; gap: 12px; align-items: center; color: var(--gold); font-weight: 600; font-style: italic; }
 .glaze .lbl { display: block; font-style: normal; font-size: 10px; letter-spacing: .16em; font-weight: 800; color: var(--muted); }
@@ -287,7 +288,7 @@ const QS = [
     opts: ['100', '160', '50', '120'], a: 0,
     why: 'Area is proportion. [4, 6): 2 × 0.15 = 0.3. [6, 10]: 4 × 0.05 = 0.2. Total area is 1, so [2, 4) holds 0.5, and 0.5 × 200 = 100. Treating heights as proportions gives the 160 trap.',
     glaze: "Half of all questions solved in under 4 minutes. Speedrun champion." },
-  { lec: 7, topic: "Histograms", t: 45,
+  { lec: 7, topic: "Histograms", t: 45, img: "img/q10-hist.png",
     text: "Same 200 questions, redrawn as a density histogram with bins [2, 6), [6, 10]. What is the height of the [2, 6) bar?",
     opts: ['0.8', '0.4', '0.2', '0.1'], a: 2,
     why: '[2, 6) holds 0.5 + 0.3 = 0.8 of the data. Height = area ÷ width = 0.8 ÷ 4 = 0.2.',
@@ -404,7 +405,7 @@ function renderStart() {
       <div>
         <div class="eyebrow">DSC 10 · Fall 2026 · Midterm Review</div>
         <h1 class="wordmark">Chi<span class="gold">hoot</span></h1>
-        <p class="lede">Nineteen midterm-style questions covering Lectures 1–12, modeled on past exams from your instructors. Every one is built around a trap that dropped real exam averages into the 50–70% range. Every one is about Professor Chi, the greatest professor in DSC 10 history.</p>
+        <p class="lede">Nineteen midterm-style questions covering Lectures 1–12, modeled on past exams from your instructors. Every one is built around a trap that dropped real exam averages into the 50–70% range. </p>
       </div>
       ${cardHTML()}
     </section>
@@ -511,6 +512,7 @@ function answer(k) {
       <div class="bar"><span>${bar}</span><span class="pts">${ok ? "+" + pts.toLocaleString() : "+0"}</span></div>
       <div class="body">
         <p class="why">${md(q.why)}</p>
+        ${q.img ? `<img class="why-img" src="${q.img}" alt="Density histogram of minutes with bins [2, 6) and [6, 10]: the [2, 6) bar has height 0.2 and the [6, 10] bar has height 0.05.">` : ""}
         <p class="glaze"><span class="avatar" aria-hidden="true">PC</span><span><span class="lbl">CHI WATCH</span>${esc(q.glaze)}</span></p>
         <button class="btn-primary next" id="next">${last ? "Final buzzer" : "Next"}</button>
       </div>

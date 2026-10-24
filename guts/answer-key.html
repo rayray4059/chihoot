@@ -21,7 +21,7 @@ if (location.protocol === "file:") document.getElementById("app").innerHTML = '<
 <script type="module">
 // Built from problems.js and key.js, so it always matches what the host grades against.
 import { SETS, PROBLEMS, NUM } from "./problems.js";
-import { KEY } from "./key.js";
+import { KEY, RIGHT_BARS } from "./key.js";
 import { esc, md, LETTERS } from "./text.js";
 
 function short(p) {
@@ -39,17 +39,26 @@ function accepted(p) {
   return "";
 }
 
+// Laid out like the solo game's reveal: question, then a banner, the answer, the explanation, and Chi Watch.
 function problem(p, set) {
   const k = KEY[p.id] || {};
-  const body = p.type === "choice"
-    ? `<ol>${p.opts.map((o, i) => `<li class="${LETTERS[i] === k.ans ? "right" : ""}">${md(o)}${LETTERS[i] === k.ans ? " ✓" : ""}</li>`).join("")}</ol>`
-    : `<div class="ans">Answer: <b>${short(p)}</b><br><small class="muted">${accepted(p)}</small></div>`;
+  const n = +p.id.slice(1);
+  const choices = p.type === "choice"
+    ? `<ol>${p.opts.map((o, i) => `<li class="${LETTERS[i] === k.ans ? "right" : ""}">${md(o)}${LETTERS[i] === k.ans ? " ✓" : ""}</li>`).join("")}</ol>` : "";
   return `<article class="ak">
-    <div class="pmeta">P${NUM[p.id]} · ${set.pts} pts · Lecture ${p.lec} · ${esc(p.topic)} · Chihoot Q${p.id.slice(1)}</div>
+    <div class="pmeta">P${NUM[p.id]} · ${set.pts} pts · Lecture ${p.lec} · ${esc(p.topic)} · Chihoot Q${n}</div>
     <h3>${md(esc(p.text))}</h3>
     ${p.code ? `<pre>${esc(p.code)}</pre>` : ""}
-    ${body}
-    ${k.why ? `<p class="why">${md(k.why)}</p>` : ""}
+    ${choices}
+    <section class="ak-reveal">
+      <div class="bar"><span>${esc(RIGHT_BARS[(n - 1) % RIGHT_BARS.length])}</span><span>+${set.pts}</span></div>
+      <div class="body">
+        <div class="ans">Answer: <b>${short(p)}</b>${p.type === "choice" ? "" : `<br><small class="muted">${accepted(p)}</small>`}</div>
+        ${k.why ? `<p class="why">${md(k.why)}</p>` : ""}
+        ${k.img ? `<img class="why-img" src="${esc(k.img)}" alt="${esc(k.imgAlt || "")}">` : ""}
+        ${k.glaze ? `<p class="glaze"><span class="avatar" aria-hidden="true">PC</span><span><span class="lbl">Chi Watch</span>${esc(k.glaze)}</span></p>` : ""}
+      </div>
+    </section>
   </article>`;
 }
 

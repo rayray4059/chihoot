@@ -146,6 +146,7 @@ td.num, th.num { font-variant-numeric: tabular-nums; text-align: right; }
 .lb li:first-child .rk { color: var(--gold); }
 
 /* results */
+.why-img { display: block; width: 100%; max-width: 440px; height: auto; background: #fff; border-radius: 6px; padding: 6px; }
 .big { font-family: var(--display); font-size: clamp(72px, 16vw, 132px); line-height: .9; color: var(--gold); font-variant-numeric: tabular-nums; }
 .review { display: flex; flex-direction: column; gap: 10px; }
 .miss { background: var(--court); border: 1px solid var(--line); border-left: 4px solid var(--bad); border-radius: 6px; padding: 12px 14px; font-size: 14px; display: flex; flex-direction: column; gap: 4px; }

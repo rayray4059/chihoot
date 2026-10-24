@@ -229,7 +229,8 @@ function reviewHTML() {
     return `<div class="miss ${ok ? "ok" : ""}">
       <span class="mq">${ok ? "✓" : "✗"} P${NUM[p.id]} · Set ${s + 1} · Lecture ${p.lec} · ${esc(p.topic)}</span>
       <span class="ma">You: ${yours} · Answer: ${md(a.show)}</span>
-      <p class="why">${md(a.why)}</p></div>`;
+      <p class="why">${md(a.why)}</p>
+      ${a.img ? `<img class="why-img" src="${esc(a.img)}" alt="${esc(a.imgAlt || "")}">` : ""}</div>`;
   }).join("")).join("")}</section>`;
 }
 

@@ -207,7 +207,7 @@ function publicAnswers() {
   PROBLEMS.forEach(p => {
     const k = KEY[p.id];
     if (!k) return;
-    out[p.id] = { show: k.type === "choice" ? `${k.ans} · ${p.opts[LETTERS.indexOf(k.ans)]}` : k.show, why: k.why || "" };
+    out[p.id] = { show: k.type === "choice" ? `${k.ans} · ${p.opts[LETTERS.indexOf(k.ans)]}` : k.show, why: k.why || "", img: k.img || null, imgAlt: k.imgAlt || null };
   });
   return out;
 }

@@ -27,3 +27,13 @@
 .blank.short { max-width: 200px; }
 .blank span { font-size: 12px; color: var(--muted); font-weight: 700; letter-spacing: .06em; }
 @media print { .sheet { break-inside: avoid; } .blank { border-bottom-color: #999; } }
+/* "Chi Watch" line, matching the solo game's reveal */
+.glaze { margin: 0; display: flex; gap: 12px; align-items: center; color: var(--gold); font-weight: 600; font-style: italic; }
+.glaze .lbl { display: block; font-style: normal; font-size: 10px; letter-spacing: .16em; font-weight: 800; color: var(--muted); text-transform: uppercase; }
+.avatar { width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--gold); color: var(--tile-ink); font-family: var(--display); font-size: 14px; font-style: normal; letter-spacing: .04em; }
+@media print { .avatar { border: 1px solid #8a5a00; background: #fff; color: #8a5a00; } }
+/* answer-key reveal panel, styled like the solo game's lower third */
+.ak-reveal { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.ak-reveal .bar { display: flex; justify-content: space-between; gap: 12px; padding: 8px 14px; background: var(--good); color: var(--tile-ink); font-family: var(--display); font-size: 20px; letter-spacing: .05em; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.ak-reveal .body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.ak-reveal .ans { border-left: 0; padding: 0; background: none; }
