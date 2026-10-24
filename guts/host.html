@@ -8,9 +8,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="print.css">
 </head>
 <body>
 <header class="topbar host-only"><a class="brand" href="host.html">Chi <span>Guts</span> · Host</a><span class="sub"><a href="answer-key.html" target="_blank">Answer key</a> · <a href="problems-sheet.html" target="_blank">Problem sheet</a> · <a href="./">Player page →</a></span></header>
+<div class="ticker no-print" aria-label="Professor Chi news ticker">
+  <div class="tag">CHI WIRE</div>
+  <div class="ticker-view"><div class="track" id="ticker"></div></div>
+</div>
+<script type="module" src="ticker.js"></script>
 <main class="wrap wide" id="app"><p class="muted">Loading…</p></main>
 
 <script>
@@ -23,6 +29,7 @@ import { configured, connect, esc, fmtClock, LETTERS, ranked, boardHTML, setupHT
   signInWithEmailAndPassword, signOut, onAuthStateChanged } from "./common.js";
 import { SETS, PROBLEMS, NUM, SET_OF } from "./problems.js";
 import { KEY, check } from "./key.js";
+import { answerCardHTML } from "./review.js";
 
 const app = document.getElementById("app");
 const N = SETS.length;
@@ -31,6 +38,7 @@ const GRACE = 10000;   // matches the +10000 ms grace in database.rules.json
 
 let auth, db, serverNow;
 let pin = null, game = null, unsub = null, ending = false;
+let pview = "board", pi = 0;   // projector: "board" or "answers", and which problem is showing
 const missingKeys = PROBLEMS.filter(p => !KEY[p.id]).map(p => p.id);
 
 function recent() { try { return JSON.parse(localStorage.getItem(RECENT)) || []; } catch (e) { return []; } }
@@ -157,20 +165,43 @@ function renderConsole() {
     btn("csv", "Export CSV"),
     btn("switch", "Switch game")
   ].filter(Boolean).join("");
+  const showAnswers = projector && pview === "answers" && m.status === "ended";
+  const pControls = [
+    btn("pboard", "Scoreboard", showAnswers ? "btn-ghost" : "btn-primary"),
+    m.status === "ended" && btn("panswers", "Answers", showAnswers ? "btn-primary" : "btn-ghost"),
+    btn("projector", "Exit projector view")
+  ].filter(Boolean).join("");
 
   app.innerHTML = `
-    <section class="host-top">
+    <section class="host-top"${showAnswers ? " hidden" : ""}>
       <div><div class="eyebrow">Join at</div><div class="joinurl">${esc(joinUrl)}</div></div>
       <div><div class="eyebrow">PIN</div><div class="pin">${esc(pin)}</div></div>
       <div class="stat"><small>${label}</small><b id="clock">–</b></div>
     </section>
-    <div class="controls ${projector ? "projector-only" : "host-only"}">${projector ? btn("projector", "Exit projector view") : controls}</div>
+    <div class="controls ${projector ? "projector-only" : "host-only"}">${projector ? pControls : controls}</div>
     ${missingKeys.length ? `<p class="err host-only">key.js is missing answers for: ${missingKeys.join(", ")}. Those problems will be marked wrong.</p>` : ""}
     <p class="muted host-only">${Object.keys(teams).length} teams · ${devices} device${devices === 1 ? "" : "s"} connected${devices >= 90 ? " · close to the free Firebase plan's 100-connection limit" : ""}</p>
-    <section class="panel projector-only"><h3>Scoreboard</h3>${boardHTML(game.board, null, N)}</section>
+    ${showAnswers ? answersHTML(teams) : `<section class="panel projector-only"><h3>Scoreboard</h3>${boardHTML(game.board, null, N)}</section>`}
     <section class="panel host-only"><h3>Teams</h3>${tableHTML(teams)}
       <p class="muted">Hover a mark to see the team's answer. ✓ correct · ✗ wrong · — set not submitted yet.</p></section>`;
   patchClock();
+}
+
+// One problem at a time for going over answers on the projector, with how the teams did.
+function answersHTML(teams) {
+  const p = PROBLEMS[pi], s = SET_OF[p.id], set = SETS[s];
+  const list = Object.values(teams);
+  const reached = list.filter(t => t.submitted?.[s]).length;
+  const right = list.filter(t => t.graded?.[s]?.[p.id] === true).length;
+  const stat = list.length ? `<p class="team-stat">${right} of ${reached} team${reached === 1 ? "" : "s"} got it${reached < list.length ? ` · ${list.length - reached} didn't reach Set ${s + 1}` : ""}</p>` : "";
+  return `<section class="projector-only ak-step">
+    <div class="controls">
+      <button class="btn-ghost" data-act="pprev"${pi === 0 ? " disabled" : ""}>← Prev</button>
+      <span class="muted">Problem ${pi + 1} of ${PROBLEMS.length} · Set ${s + 1}: ${esc(set.name)}</span>
+      <button class="btn-ghost" data-act="pnext"${pi === PROBLEMS.length - 1 ? " disabled" : ""}>Next →</button>
+    </div>
+    ${answerCardHTML(p, set, stat)}
+  </section>`;
 }
 
 function tableHTML(teams) {
@@ -256,10 +287,21 @@ app.addEventListener("click", e => {
   else if (act === "reveal") update(ref(db, `games/${pin}`), m.reveal ? { "meta/reveal": false, answers: null } : { "meta/reveal": true, answers: publicAnswers() });
   else if (act === "projector") { document.body.classList.toggle("projector"); renderConsole(); }
   else if (act === "csv") exportCSV();
+  else if (act === "pboard") { pview = "board"; renderConsole(); }
+  else if (act === "panswers") { pview = "answers"; renderConsole(); }
+  else if (act === "pprev") { pi = Math.max(0, pi - 1); renderConsole(); }
+  else if (act === "pnext") { pi = Math.min(PROBLEMS.length - 1, pi + 1); renderConsole(); }
   else if (act === "kick") {
     const t = game.teams?.[el.dataset.t];
     if (t && confirm(`Remove team "${t.name || el.dataset.t}"? Their answers are deleted.`)) remove(ref(db, `games/${pin}/teams/${el.dataset.t}`));
   }
+});
+
+// Arrow keys step through answers on the projector.
+document.addEventListener("keydown", e => {
+  if (!game || !document.body.classList.contains("projector") || pview !== "answers") return;
+  if (e.key === "ArrowRight" && pi < PROBLEMS.length - 1) { pi++; renderConsole(); }
+  else if (e.key === "ArrowLeft" && pi > 0) { pi--; renderConsole(); }
 });
 
 // Clock, plus ending the game once time (and the submission grace period) runs out.
